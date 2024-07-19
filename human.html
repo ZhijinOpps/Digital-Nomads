@@ -1,102 +1,56 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nomads by Demographics</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-        .container {
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-            margin-top: 20px;
-        }
         #buttons {
             margin-bottom: 10px;
-            display: flex;
-            justify-content: center;
         }
         button {
-            font-size: 12px;
-            padding: 5px 15px;
+            font-size: 18px;
+            padding: 10px 20px;
             margin-right: 10px;
-            border-radius: 15px;
+            border-radius: 15px; /* 圆角更大 */
             border: 1px solid #000;
-            background-color: #fff; /* 默认背景颜色 */
-            color: #000; /* 默认字体颜色 */
-            cursor: pointer; /* 鼠标悬停时变成手型 */
-            transition: background-color 0.3s, color 0.3s; /* 添加过渡效果 */
-        }
-        button:hover {
-            background-color: #f0f0f0; /* 鼠标悬停时背景颜色 */
-        }
-        button.active {
-            background-color: #000; /* 被点击时的背景颜色 */
-            color: #fff; /* 被点击时的字体颜色 */
-        }
-        .small-button {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            display: inline-block;
-            margin: 5px 10px;
-            cursor: pointer;
         }
         .tooltip {
             position: absolute;
             background-color: white;
             border: 1px solid #ccc;
-            padding: 10px;
+            padding: 5px;
             border-radius: 5px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s;
         }
         .filter-legend {
-            margin-top: 12px;
-            margin-bottom: 12px;
-            font-size: 12px;
-            text-align: left;
-            margin: 20px 20px 20px;
+            margin-top: 10px;
+            font-size: 14px;
         }
         .filter-legend span {
             display: inline-block;
-            margin-right: 16px;
-            margin-bottom: 12px;
+            margin-right: 10px;
         }
         .filter-legend .color-box {
             width: 10px;
             height: 10px;
             display: inline-block;
-            margin-right: 8px;
-        }
-        #nomadsVisualization {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            text-align: center;
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="buttons">
-            <button id="ageButton">Age</button>
-            <button id="incomeButton">Income</button>
-            <button id="raceButton">Race and Ethnicity</button>
-            <button id="eduButton">Educational Level</button>
-        </div>
-        <div class="filter-legend" id="filterLegend"></div>
-        <div id="nomadsVisualization"></div>
+    <div id="buttons">
+        <button id="ageButton">Age</button>
+        <button id="incomeButton">Income</button>
+        <button id="raceButton">Race and Ethnicity</button>
+        <button id="eduButton">Educational Level</button>
     </div>
+    <div class="filter-legend" id="filterLegend"></div>
+    <div id="nomadsVisualization"></div>
     <div class="tooltip" id="tooltip"></div>
     <script>
         // 数据定义
@@ -134,17 +88,19 @@
             { group: 'High school', percentage: 9 }
         ];
 
-        const width = 400;
+        const width = 800;
         const height = 400;
         const svg = d3.select('#nomadsVisualization')
             .append('svg')
             .attr('width', width)
             .attr('height', height);
 
-        // 固定离散颜色方案
-        const colorScheme = ['#336F73', '#3B7A86', '#468E9D', '#539EB2', '#67B4CC', '#8CCFDE', '#BFFBFF'];
-
-        const getColor = (index) => colorScheme[index % colorScheme.length];
+        const colors = {
+            age: d3.scaleOrdinal(d3.schemeCategory10),
+            income: d3.scaleOrdinal(d3.schemeCategory10),
+            race: d3.scaleOrdinal(d3.schemeCategory10),
+            edu: d3.scaleOrdinal(d3.schemeCategory10)
+        };
 
         const createPeopleArray = (data, totalPeople = 100) => {
             let peopleArray = [];
@@ -157,9 +113,8 @@
             return peopleArray;
         };
 
-        const updatePeople = (data) => {
+        const updatePeople = (data, colorScale, category) => {
             const peopleArray = createPeopleArray(data);
-
             const people = svg.selectAll('.person')
                 .data(peopleArray);
 
@@ -171,11 +126,11 @@
                 .attr('r', 15)
                 .attr('cx', (d, i) => (i % 10) * 40 + 20)
                 .attr('cy', (d, i) => Math.floor(i / 10) * 40 + 20)
-                .attr('fill', (d, i) => getColor(data.findIndex(group => group.group === d.group)))
+                .attr('fill', d => colorScale(d.group))
                 .on('mouseover', function (event, d) {
                     d3.select('#tooltip')
                         .style('opacity', 1)
-                        .html(`Group: ${d.group}`)
+                        .html(`Group: ${d.group}<br>Percentage: ${d.percentage}%`)
                         .style('left', `${event.pageX + 10}px`)
                         .style('top', `${event.pageY - 20}px`);
                 })
@@ -186,50 +141,38 @@
             enter.merge(people)
                 .attr('cx', (d, i) => (i % 10) * 40 + 20)
                 .attr('cy', (d, i) => Math.floor(i / 10) * 40 + 20)
-                .attr('fill', (d, i) => getColor(data.findIndex(group => group.group === d.group)));
+                .attr('fill', d => colorScale(d.group));
 
-            updateFilterLegend(data);
+            updateFilterLegend(data, colorScale, category);
         };
 
-        const updateFilterLegend = (data) => {
+        const updateFilterLegend = (data, colorScale, category) => {
             const legend = d3.select('#filterLegend');
             legend.html('');
-            data.forEach((group, index) => {
+            data.forEach(group => {
                 legend.append('span')
-                    .html(`<div class="color-box" style="background-color:${getColor(index)};"></div>${group.group}`);
+                    .html(`<div class="color-box" style="background-color:${colorScale(group.group)};"></div>${group.group}`);
             });
         };
 
-        const handleButtonClick = (buttonId) => {
-            // 移除所有按钮的 active 类
-            document.querySelectorAll('#buttons button').forEach(button => button.classList.remove('active'));
-
-            // 为当前点击的按钮添加 active 类
-            document.getElementById(buttonId).classList.add('active');
-        };
-
         // 初始化
-        updatePeople(ageData);
+        updatePeople(ageData, colors.age, 'age');
 
         // 按钮事件监听器
         document.getElementById('ageButton').addEventListener('click', () => {
-            updatePeople(ageData);
-            handleButtonClick('ageButton');
+            updatePeople(ageData, colors.age, 'age');
         });
 
         document.getElementById('incomeButton').addEventListener('click', () => {
-            updatePeople(incomeData);
-            handleButtonClick('incomeButton');
+            updatePeople(incomeData, colors.income, 'income');
         });
 
         document.getElementById('raceButton').addEventListener('click', () => {
-            updatePeople(raceData);
-            handleButtonClick('raceButton');
+            updatePeople(raceData, colors.race, 'race');
         });
 
         document.getElementById('eduButton').addEventListener('click', () => {
-            updatePeople(eduData);
-            handleButtonClick('eduButton');
+            updatePeople(eduData, colors.edu, 'edu');
         });
     </script>
 </body>
